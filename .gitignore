@@ -1,0 +1,8 @@
+# Ignore specific subfolders anywhere in the repo
+**/Template/
+**/Exports/
+**/venv/
+**/__pycache__/
+**/assets/
+**/media/
+**/clips/
