@@ -9,15 +9,6 @@ class NeuronLinearBehavior(Scene):
         self.play(Write(title))
         self.wait(1)
         
-        # Show the equation
-        equation = MathTex(
-            "z", "=", "w_1", "x_1", "+", "w_2", "x_2", "+", "b"
-        ).scale(1)
-        equation.next_to(title, DOWN, buff=0.5)
-        
-        self.play(Write(equation))
-        self.wait(2)
-        
         # Create visual representation of inputs and neuron
         neuron_group = VGroup()
         
@@ -64,6 +55,15 @@ class NeuronLinearBehavior(Scene):
             GrowArrow(w2_arrow), Write(w2_label),
             GrowArrow(bias_arrow), Write(bias_label)
         )
+        self.wait(12)
+
+        # Show the equation
+        equation = MathTex(
+            "z", "=", "w_1", "x_1", "+", "w_2", "x_2", "+", "b"
+        ).scale(1)
+        equation.next_to(title, DOWN, buff=0.5)
+        
+        self.play(Write(equation))
         self.wait(2)
         
         # Scenario 1: Both weights positive
@@ -139,7 +139,6 @@ class NeuronLinearBehavior(Scene):
                 neuron.animate.set_fill(YELLOW, opacity=0.5 + min(0.3, (2-z_val)*0.1)),
                 run_time=0.5
             )
-        self.wait(1)
         
         # Reset values
         self.play(
@@ -152,41 +151,8 @@ class NeuronLinearBehavior(Scene):
             neuron.animate.set_fill(YELLOW, opacity=0.8)
         )
         
-        # Scenario 3: Changing bias
-        scenario3 = Text("Changing bias shifts output up or down", font_size=24, color=PURPLE)
-        scenario3.next_to(equation, DOWN, buff=0.5)
-        
-        self.play(FadeIn(scenario3))
-        
-        # Keep inputs constant, vary bias
-        bias_val = DecimalNumber(0, num_decimal_places=1, color=PURPLE).scale(0.6)
-        bias_val.next_to(bias_label, RIGHT, buff=0.2)
-        self.play(FadeIn(bias_val))
-        
-        # w1=2, w2=2, vary b from -2 to 2
-        x1_val, x2_val = 1, 1
-        for b in [-2, -1, 0, 1, 2]:
-            z_val = 2 * x1_val + 2 * x2_val + b
-            
-            self.play(
-                bias_val.animate.set_value(b),
-                z_value.animate.set_value(z_val),
-                bias_arrow.animate.set_color(PURPLE if b >= 0 else ORANGE),
-                neuron.animate.set_fill(YELLOW, opacity=0.4 + abs(z_val)*0.08),
-                run_time=0.7
-            )
-        
-        self.wait(2)
-        
-        # Final message
-        final_text = Text("Just like shifting the intercept in a regression line", font_size=28, color=GREEN)
-        final_text.to_edge(DOWN, buff=0.5)
-        self.play(FadeIn(final_text))
-        self.wait(1)
-        
         # Fade out neural network visualization
         self.play(*[FadeOut(mob) for mob in self.mobjects])
-        self.wait(0.5)
         
         # Create regression line visualization
         axes = Axes(
@@ -208,7 +174,6 @@ class NeuronLinearBehavior(Scene):
             for x in np.linspace(0.5, 4.5, 12)
         ])
         self.play(FadeIn(dots))
-        self.wait(0.5)
         
         # Regression line that will shift
         def get_line(intercept):
@@ -224,10 +189,9 @@ class NeuronLinearBehavior(Scene):
         intercept_group.to_corner(UR, buff=0.5)
         
         self.play(Create(regression_line), FadeIn(intercept_group))
-        self.wait(1)
         
         # Shift the line up and down by changing intercept
-        intercepts = [2, 3.5, 5, 3.5, 2, 0.5, 2]
+        intercepts = [2, 3.5, 5, 3.5, 2]
         
         for b in intercepts[1:]:
             new_line = get_line(b)
@@ -239,12 +203,6 @@ class NeuronLinearBehavior(Scene):
             self.wait(0.3)
         
         self.wait(1)
-        
-        # Final emphasis
-        shift_text = Text("The bias shifts the entire prediction!", font_size=28, color=PURPLE)
-        shift_text.to_edge(DOWN, buff=0.5)
-        self.play(Write(shift_text))
-        self.wait(2)
         
         self.play(*[FadeOut(mob) for mob in self.mobjects])
         self.wait(1)
@@ -741,332 +699,253 @@ class BiasVisualization(Scene):
 class ActivationFunctions(Scene):
     def construct(self):
         # Title
-        title = Text("How Activation Functions Change the Output", font_size=38)
+        title = Text("Completing the Neuron's Decision", font_size=38)
         title.to_edge(UP)
         self.play(Write(title))
         self.wait(1)
         
-        # Show the neuron computation flow
-        subtitle = Text("From weighted sum to final output", font_size=26, color=GRAY)
+        # PART 1: Show we have a raw weighted sum
+        subtitle = Text("We have a weighted sum... but what does it mean?", font_size=26, color=GRAY)
         subtitle.next_to(title, DOWN, buff=0.3)
         self.play(FadeIn(subtitle))
         self.wait(1)
         
-        # Show neuron diagram with inputs
-        neuron_viz = VGroup()
+        # Show simple neuron with weighted sum
+        neuron = Circle(radius=0.6, color=PURPLE, fill_opacity=0.8)
+        z_label = MathTex("z = 47.3", color=WHITE, font_size=28)
+        z_label.move_to(neuron)
+        neuron_group = VGroup(neuron, z_label)
+        neuron_group.shift(LEFT * 2)
         
-        # Inputs
-        x1_node = Circle(radius=0.3, color=BLUE, fill_opacity=0.8)
-        x1_label = MathTex("x_1", color=WHITE).scale(0.7).move_to(x1_node)
-        x1_group = VGroup(x1_node, x1_label).shift(LEFT * 5 + UP * 1)
+        # Show inputs flowing in
+        input_arrows = VGroup(*[
+            Arrow(LEFT * 4 + UP * (1 - i * 0.8), neuron.get_left() + UP * (0.4 - i * 0.4),
+                 buff=0.1, color=BLUE, stroke_width=3)
+            for i in range(3)
+        ])
         
-        x2_node = Circle(radius=0.3, color=BLUE, fill_opacity=0.8)
-        x2_label = MathTex("x_2", color=WHITE).scale(0.7).move_to(x2_node)
-        x2_group = VGroup(x2_node, x2_label).shift(LEFT * 5 + DOWN * 1)
-        
-        # Neuron computing z
-        z_node = Circle(radius=0.5, color=PURPLE, fill_opacity=0.8)
-        z_label = MathTex("z", color=WHITE).scale(0.9).move_to(z_node)
-        z_group = VGroup(z_node, z_label).shift(LEFT * 2)
-        
-        # Weights
-        w1_arrow = Arrow(x1_node.get_right(), z_node.get_left() + UP*0.3, buff=0.1, color=GREEN, stroke_width=4)
-        w1_label = MathTex("w_1", color=GREEN).scale(0.6).next_to(w1_arrow, UP, buff=0.1)
-        
-        w2_arrow = Arrow(x2_node.get_right(), z_node.get_left() + DOWN*0.3, buff=0.1, color=GREEN, stroke_width=4)
-        w2_label = MathTex("w_2", color=GREEN).scale(0.6).next_to(w2_arrow, DOWN, buff=0.1)
-        
-        # Bias
-        bias_arrow = Arrow(z_node.get_top() + UP*0.5, z_node.get_top(), buff=0.1, color=ORANGE, stroke_width=4)
-        bias_label = MathTex("b", color=ORANGE).scale(0.6).next_to(bias_arrow, UP, buff=0.1)
-        
-        # Equation
-        equation = MathTex("z = w_1x_1 + w_2x_2 + b").scale(0.8)
-        equation.next_to(z_group, DOWN, buff=0.5)
-        
-        neuron_viz.add(x1_group, x2_group, z_group, w1_arrow, w1_label, w2_arrow, w2_label, bias_arrow, bias_label, equation)
-        
-        self.play(LaggedStart(
-            FadeIn(x1_group),
-            FadeIn(x2_group),
-            FadeIn(z_group),
-            GrowArrow(w1_arrow), Write(w1_label),
-            GrowArrow(w2_arrow), Write(w2_label),
-            GrowArrow(bias_arrow), Write(bias_label),
-            Write(equation),
-            lag_ratio=0.15
-        ))
-        self.wait(1)
-        
-        self.play(FadeOut(subtitle))
-        self.wait(0.5)
-        
-        # SIGMOID SECTION
-        sigmoid_title = Text("Sigmoid: Smooth 'Off' to 'On' Transition", font_size=28, color=BLUE)
-        sigmoid_title.next_to(title, DOWN, buff=0.3)
-        self.play(Write(sigmoid_title))
-        self.wait(0.5)
-        
-        # Add activation function to neuron diagram
-        activation_node = Circle(radius=0.5, color=YELLOW, fill_opacity=0.8)
-        activation_label = MathTex("\\sigma(z)", color=BLACK).scale(0.8).move_to(activation_node)
-        activation_group = VGroup(activation_node, activation_label).shift(RIGHT * 1.5)
-        
-        z_to_activation = Arrow(z_node.get_right(), activation_node.get_left(), buff=0.1, color=BLUE, stroke_width=4)
+        weighted_text = Text("Weighted\nInputs + Bias", font_size=20, color=BLUE, line_spacing=1.2)
+        weighted_text.next_to(input_arrows, LEFT, buff=0.3)
         
         self.play(
-            FadeIn(activation_group),
-            GrowArrow(z_to_activation)
-        )
-        self.wait(0.5)
-        
-        # Create small sigmoid graph next to activation node
-        small_axes = Axes(
-            x_range=[-3, 3, 1],
-            y_range=[0, 1, 0.5],
-            x_length=2.5,
-            y_length=1.5,
-            axis_config={"color": GRAY, "stroke_width": 2, "include_tip": False},
-        )
-        small_axes.next_to(activation_group, RIGHT, buff=0.5)
-        
-        def sigmoid(x):
-            return 1 / (1 + np.exp(-x))
-        
-        sigmoid_curve = small_axes.plot(sigmoid, color=BLUE, x_range=[-3, 3], stroke_width=3)
-        
-        self.play(Create(small_axes), Create(sigmoid_curve))
-        self.wait(0.5)
-        
-        # Input value trackers
-        x1_val = ValueTracker(0.5)
-        x2_val = ValueTracker(0.5)
-        w1_val = ValueTracker(1.0)
-        w2_val = ValueTracker(1.0)
-        b_val = ValueTracker(-2.0)
-        
-        # Display values
-        x1_display = always_redraw(lambda: DecimalNumber(x1_val.get_value(), num_decimal_places=1, color=BLUE)
-                                   .scale(0.5).next_to(x1_group, LEFT, buff=0.2))
-        x2_display = always_redraw(lambda: DecimalNumber(x2_val.get_value(), num_decimal_places=1, color=BLUE)
-                                   .scale(0.5).next_to(x2_group, LEFT, buff=0.2))
-        
-        # Helper functions to compute z and output
-        def get_z():
-            return w1_val.get_value() * x1_val.get_value() + w2_val.get_value() * x2_val.get_value() + b_val.get_value()
-        
-        z_display = always_redraw(lambda: DecimalNumber(get_z(), num_decimal_places=2, color=PURPLE)
-                                  .scale(0.6).next_to(z_group, RIGHT, buff=0.3)).shift(UP * 0.1)
-        
-        output_display = always_redraw(lambda: DecimalNumber(sigmoid(get_z()), num_decimal_places=2, color=YELLOW)
-                                       .scale(0.6).next_to(activation_group, RIGHT, buff=0.3))
-        
-        # Dot on sigmoid curve
-        sigmoid_dot = always_redraw(lambda: Dot(
-            small_axes.c2p(get_z(), sigmoid(get_z())),
-            color=RED, radius=0.08
-        ))
-        
-        self.play(
-            Write(x1_display), Write(x2_display),
-            Write(z_display), Write(output_display),
-            FadeIn(sigmoid_dot)
+            FadeIn(neuron_group),
+            LaggedStart(*[GrowArrow(arrow) for arrow in input_arrows], lag_ratio=0.2),
+            Write(weighted_text)
         )
         self.wait(1)
         
-        # Scenario 1: Negative z (OFF)
-        scenario1 = Text("Low inputs → Negative z → Output near 0 (OFF)", 
-                        font_size=20, color=RED)
-        scenario1.to_edge(DOWN, buff=0.5)
+        # Question mark - what does this number mean?
+        question = Text("?", font_size=80, color=YELLOW, weight=BOLD)
+        question.next_to(neuron_group, RIGHT, buff=0.5)
+        
+        self.play(Write(question))
+        self.wait(1)
+        
+        confusion_text = Text("Just a raw number...", font_size=24, color=ORANGE)
+        confusion_text.next_to(question, DOWN, buff=0.5)
+        self.play(Write(confusion_text))
+        self.wait(8)
+        
+        # Clear for next part
+        self.play(*[FadeOut(mob) for mob in [subtitle, question, confusion_text]])
+        self.wait(0.3)
+        
+        # PART 2: Introduce activation function as the decision maker
+        decision_title = Text("The Activation Function: Making the Decision", 
+                             font_size=30, color=GREEN)
+        decision_title.next_to(title, DOWN, buff=0.4)
+        self.play(Write(decision_title))
+        self.wait(0.5)
+        
+        # Show activation box
+        activation_box = Rectangle(width=2.5, height=1.2, color=GREEN, stroke_width=4)
+        activation_label = Text("Activation\nFunction", font_size=22, color=GREEN, 
+                              line_spacing=1.2, weight=BOLD)
+        activation_label.move_to(activation_box)
+        activation_group = VGroup(activation_box, activation_label)
+        activation_group.next_to(neuron_group, RIGHT, buff=1)
+        
+        # Arrow from neuron to activation
+        to_activation = Arrow(neuron.get_right(), activation_box.get_left(),
+                             buff=0.1, color=PURPLE, stroke_width=4)
+        z_on_arrow = MathTex("z", color=PURPLE, font_size=24)
+        z_on_arrow.next_to(to_activation, UP, buff=0.1)
+        
+        self.play(
+            GrowArrow(to_activation),
+            Write(z_on_arrow),
+            FadeIn(activation_group)
+        )
+        self.wait(1)
+        
+        # The key question inside a thought bubble
+        question_text = Text("Should I activate?", font_size=20, color=WHITE, slant=ITALIC)
+        question_text.move_to(activation_box)
+        
+        self.play(
+            FadeOut(activation_label),
+            Write(question_text)
+        )
+        self.wait(1.5)
+        
+        self.play(FadeOut(question_text), FadeIn(activation_label))
+        self.wait(0.3)
+        
+        # PART 3: Show two scenarios
+        self.play(FadeOut(decision_title))
+        
+        # Output node
+        output_circle = Circle(radius=0.5, color=GRAY, fill_opacity=0.6)
+        output_circle.shift(RIGHT * 4)
+        
+        from_activation = Arrow(activation_box.get_right(), output_circle.get_left(),
+                               buff=0.1, color=ORANGE, stroke_width=4)
+        
+        self.play(
+            GrowArrow(from_activation),
+            FadeIn(output_circle)
+        )
+        self.wait(0.5)
+        
+        # Scenario 1: Strong signal (high value)
+        scenario1 = Text("Strong signal → High output", font_size=24, color=GREEN)
+        scenario1.to_edge(DOWN, buff=1.5)
+        
         self.play(Write(scenario1))
-        self.wait(1)
         
-        # Scenario 2: Increase inputs gradually
-        scenario2 = Text("Increasing inputs → z rises → Output smoothly transitions", 
-                        font_size=20, color=YELLOW)
-        scenario2.to_edge(DOWN, buff=0.5)
+        # Change z to high value
+        new_z = MathTex("z = 87.5", color=WHITE, font_size=28)
+        new_z.move_to(z_label)
         
-        self.play(FadeOut(scenario1), FadeIn(scenario2))
+        high_output = MathTex("0.95", color=GREEN, font_size=32)
+        high_output.move_to(output_circle)
         
         self.play(
-            x1_val.animate.set_value(1.5),
-            x2_val.animate.set_value(1.5),
-            run_time=2
+            Transform(z_label, new_z),
+            neuron.animate.set_fill(GREEN, opacity=0.9),
+            activation_box.animate.set_stroke(GREEN, width=6),
+            FadeIn(high_output),
+            output_circle.animate.set_fill(GREEN, opacity=0.8),
+            from_activation.animate.set_color(GREEN).set_stroke(width=6)
+        )
+        self.wait(0.5)
+        
+        pass_forward = Text("✓ Pass signal forward!", font_size=22, color=YELLOW, weight=BOLD)
+        pass_forward.next_to(output_circle, DOWN, buff=0.5)
+        self.play(Write(pass_forward))
+        self.wait(0.5)
+        
+        # Reset for scenario 2
+        self.play(
+            FadeOut(scenario1),
+            FadeOut(high_output),
+            FadeOut(pass_forward)
+        )
+        
+        scenario2 = Text("Weak signal → Low/Zero output", font_size=24, color=RED)
+        scenario2.to_edge(DOWN, buff=1.5)
+        self.play(Write(scenario2))
+        
+        # Change z to low value
+        low_z = MathTex("z = -12.3", color=WHITE, font_size=26)
+        low_z.move_to(z_label)
+        
+        low_output = MathTex("0.02", color=RED, font_size=32)
+        low_output.move_to(output_circle)
+        
+        self.play(
+            Transform(z_label, low_z),
+            neuron.animate.set_fill(RED, opacity=0.7),
+            activation_box.animate.set_stroke(RED, width=6),
+            FadeIn(low_output),
+            output_circle.animate.set_fill(RED, opacity=0.5),
+            from_activation.animate.set_color(RED).set_stroke(width=3)
+        )
+        self.wait(0.5)
+        
+        stay_quiet = Text("✗ Stay quiet", font_size=22, color=RED, weight=BOLD)
+        stay_quiet.next_to(output_circle, DOWN, buff=0.5)
+        self.play(Write(stay_quiet))
+        
+        # Clear for final part
+        self.play(*[FadeOut(mob) for mob in self.mobjects if mob != title])
+        self.wait(0.5)
+        
+        # PART 4: The transformation - linear to meaningful
+        transform_title = Text("From Raw Number to Meaningful Decision", 
+                              font_size=32, color=GOLD)
+        transform_title.next_to(title, DOWN, buff=0.4)
+        self.play(Write(transform_title))
+        
+        # Before: Raw linear combination
+        before_box = Rectangle(width=3, height=2, color=BLUE, stroke_width=3)
+        before_box.shift(LEFT * 3.5 + DOWN * 0.5)
+        
+        before_label = Text("Before", font_size=24, color=BLUE, weight=BOLD)
+        before_label.next_to(before_box, UP, buff=0.3)
+        
+        raw_eq = MathTex("z = wx + b", color=WHITE, font_size=28)
+        raw_eq.move_to(before_box).shift(UP * 0.3)
+        
+        raw_desc = Text("Just numbers...\nLinear", font_size=20, color=GRAY, 
+                       line_spacing=1.3, slant=ITALIC)
+        raw_desc.next_to(raw_eq, DOWN, buff=0.3)
+        
+        self.play(
+            Create(before_box),
+            Write(before_label),
+            Write(raw_eq),
+            Write(raw_desc)
         )
         self.wait(1)
+
+         # After: Meaningful output
+        after_box = Rectangle(width=3, height=2, color=GREEN, stroke_width=3)
+        after_box.shift(RIGHT * 3.5 + DOWN * 0.5)
         
-        # Scenario 3: High z (ON)
+        # Transformation arrow
+        transform_arrow = Arrow(before_box.get_right(), after_box.get_left(),
+                               color=YELLOW, stroke_width=6, buff=0.2)
+        transform_label = Text("Activation", font_size=22, color=YELLOW, weight=BOLD)
+        transform_label.next_to(transform_arrow, UP, buff=0.1)
+        
         self.play(
-            x1_val.animate.set_value(2.5),
-            x2_val.animate.set_value(2.5),
-            run_time=2
+            GrowArrow(transform_arrow),
+            Write(transform_label)
         )
+        self.wait(0.5)
         
-        scenario3 = Text("High inputs → Positive z → Output near 1 (ON)", 
-                        font_size=20, color=GREEN)
-        scenario3.to_edge(DOWN, buff=0.5)
-        self.play(FadeOut(scenario2), FadeIn(scenario3))
+        
+        after_label = Text("After", font_size=24, color=GREEN, weight=BOLD)
+        after_label.next_to(after_box, UP, buff=0.3)
+        
+        decision_eq = MathTex("y = A(z)", color=WHITE, font_size=28)
+        decision_eq.move_to(after_box).shift(UP * 0.3)
+        
+        decision_desc = Text("A  decision!\nMeaningful", font_size=20, color=GREEN, 
+                           line_spacing=1.3, weight=BOLD)
+        decision_desc.next_to(decision_eq, DOWN, buff=0.3)
+        
+        self.play(
+            Create(after_box),
+            Write(after_label),
+            Write(decision_eq),
+            Write(decision_desc)
+        )
         self.wait(2)
         
-        # Show effect of bias
-        self.play(FadeOut(scenario3))
-        bias_scenario = Text("Changing bias shifts the threshold", 
-                           font_size=20, color=ORANGE)
-        bias_scenario.to_edge(DOWN, buff=0.5)
-        self.play(Write(bias_scenario))
-        
-        # Reset inputs, change bias
-        self.play(
-            x1_val.animate.set_value(1.0),
-            x2_val.animate.set_value(1.0),
-            run_time=1
+        # Final message
+        final_message = Text(
+            "Numbers → Decision\n'Should I pass this signal forward?'",
+            font_size=26,
+            color=GOLD,
+            line_spacing=1.4,
+            weight=BOLD
         )
-        self.wait(0.5)
+        final_message.to_edge(DOWN, buff=0.8)
         
-        # Increase bias to push neuron ON
-        self.play(b_val.animate.set_value(0), run_time=2)
-        self.wait(1.5)
-        
-        # Clear for ReLU
-        self.play(*[FadeOut(mob) for mob in [
-            neuron_viz, activation_group, z_to_activation, small_axes, sigmoid_curve,
-            x1_display, x2_display, z_display, output_display, sigmoid_dot,
-            bias_scenario, sigmoid_title
-        ]])
-        self.wait(0.5)
-        
-        # ReLU SECTION
-        relu_title = Text("ReLU: Activates Only When z > 0", font_size=28, color=GREEN)
-        relu_title.next_to(title, DOWN, buff=0.3)
-        self.play(Write(relu_title))
-        self.wait(0.5)
-        
-        # Rebuild neuron diagram for ReLU
-        neuron_viz2 = VGroup()
-        
-        x1_node2 = Circle(radius=0.3, color=BLUE, fill_opacity=0.8)
-        x1_label2 = MathTex("x_1", color=WHITE).scale(0.7).move_to(x1_node2)
-        x1_group2 = VGroup(x1_node2, x1_label2).shift(LEFT * 5 + UP * 1)
-        
-        x2_node2 = Circle(radius=0.3, color=BLUE, fill_opacity=0.8)
-        x2_label2 = MathTex("x_2", color=WHITE).scale(0.7).move_to(x2_node2)
-        x2_group2 = VGroup(x2_node2, x2_label2).shift(LEFT * 5 + DOWN * 1)
-        
-        z_node2 = Circle(radius=0.5, color=PURPLE, fill_opacity=0.8)
-        z_label2 = MathTex("z", color=WHITE).scale(0.9).move_to(z_node2)
-        z_group2 = VGroup(z_node2, z_label2).shift(LEFT * 2)
-        
-        w1_arrow2 = Arrow(x1_node2.get_right(), z_node2.get_left() + UP*0.3, buff=0.1, color=GREEN, stroke_width=4)
-        w1_label2 = MathTex("w_1", color=GREEN).scale(0.6).next_to(w1_arrow2, UP, buff=0.1)
-        
-        w2_arrow2 = Arrow(x2_node2.get_right(), z_node2.get_left() + DOWN*0.3, buff=0.1, color=GREEN, stroke_width=4)
-        w2_label2 = MathTex("w_2", color=GREEN).scale(0.6).next_to(w2_arrow2, DOWN, buff=0.1)
-        
-        bias_arrow2 = Arrow(z_node2.get_top() + UP*0.5, z_node2.get_top(), buff=0.1, color=ORANGE, stroke_width=4)
-        bias_label2 = MathTex("b", color=ORANGE).scale(0.6).next_to(bias_arrow2, UP, buff=0.1)
-        
-        equation2 = MathTex("z = w_1x_1 + w_2x_2 + b").scale(0.8)
-        equation2.next_to(z_group2, DOWN, buff=0.5)
-        
-        neuron_viz2.add(x1_group2, x2_group2, z_group2, w1_arrow2, w1_label2, w2_arrow2, w2_label2, bias_arrow2, bias_label2, equation2)
-        
-        activation_node2 = Circle(radius=0.5, color=YELLOW, fill_opacity=0.8)
-        activation_label2 = MathTex("ReLU(z)", color=BLACK).scale(0.7).move_to(activation_node2)
-        activation_group2 = VGroup(activation_node2, activation_label2).shift(RIGHT * 1.5)
-        
-        z_to_activation2 = Arrow(z_node2.get_right(), activation_node2.get_left(), buff=0.1, color=GREEN, stroke_width=4)
-        
-        self.play(
-            FadeIn(neuron_viz2),
-            FadeIn(activation_group2),
-            GrowArrow(z_to_activation2)
-        )
-        self.wait(0.5)
-        
-        # Small ReLU graph
-        small_axes2 = Axes(
-            x_range=[-2, 2, 1],
-            y_range=[0, 2, 1],
-            x_length=2.5,
-            y_length=1.5,
-            axis_config={"color": GRAY, "stroke_width": 2, "include_tip": False},
-        )
-        small_axes2.next_to(activation_group2, RIGHT, buff=0.5)
-        
-        def relu(x):
-            return max(0, x)
-        
-        relu_neg = small_axes2.plot(lambda x: 0, color=RED, x_range=[-2, 0], stroke_width=3)
-        relu_pos = small_axes2.plot(lambda x: x, color=GREEN, x_range=[0, 2], stroke_width=3)
-        
-        self.play(Create(small_axes2), Create(relu_neg), Create(relu_pos))
-        self.wait(0.5)
-        
-        # Reset trackers for ReLU
-        x1_val.set_value(0.5)
-        x2_val.set_value(0.5)
-        w1_val.set_value(1.0)
-        w2_val.set_value(1.0)
-        b_val.set_value(-1.5)
-        
-        # Displays for ReLU
-        x1_display2 = always_redraw(lambda: DecimalNumber(x1_val.get_value(), num_decimal_places=1, color=BLUE)
-                                    .scale(0.5).next_to(x1_group2, LEFT, buff=0.2))
-        x2_display2 = always_redraw(lambda: DecimalNumber(x2_val.get_value(), num_decimal_places=1, color=BLUE)
-                                    .scale(0.5).next_to(x2_group2, LEFT, buff=0.2))
-        
-        z_display2 = always_redraw(lambda: DecimalNumber(get_z(), num_decimal_places=2, color=PURPLE)
-                                   .scale(0.6).next_to(z_group2, RIGHT, buff=0.3)).shift(UP * 0.1)
-        
-        output_display2 = always_redraw(lambda: DecimalNumber(relu(get_z()), num_decimal_places=2, color=YELLOW)
-                                        .scale(0.6).next_to(activation_group2, RIGHT, buff=0.3))
-        
-        relu_dot = always_redraw(lambda: Dot(
-            small_axes2.c2p(min(2, max(-2, get_z())), relu(get_z())),
-            color=RED, radius=0.08
-        ))
-        
-        self.play(
-            Write(x1_display2), Write(x2_display2),
-            Write(z_display2), Write(output_display2),
-            FadeIn(relu_dot)
-        )
-        self.wait(1)
-        
-        # Scenario 1: Negative z (Neuron OFF)
-        relu_scenario1 = Text("z < 0 → Neuron stays OFF (output = 0)", 
-                             font_size=20, color=RED)
-        relu_scenario1.to_edge(DOWN, buff=0.5)
-        self.play(Write(relu_scenario1))
-        self.wait(1.5)
-        
-        # Scenario 2: Cross threshold
-        relu_scenario2 = Text("Increasing z... crossing threshold at z = 0", 
-                             font_size=20, color=YELLOW)
-        relu_scenario2.to_edge(DOWN, buff=0.5)
-        
-        self.play(FadeOut(relu_scenario1), FadeIn(relu_scenario2))
-        
-        self.play(
-            x1_val.animate.set_value(1.5),
-            x2_val.animate.set_value(1.5),
-            run_time=2.5
-        )
-        self.wait(1)
-        
-        # Scenario 3: z > 0 (Neuron ON and growing)
-        relu_scenario3 = Text("z > 0 → Neuron ON! Output grows linearly", 
-                             font_size=20, color=GREEN)
-        relu_scenario3.to_edge(DOWN, buff=0.5)
-        
-        self.play(FadeOut(relu_scenario2), FadeIn(relu_scenario3))
-        
-        self.play(
-            x1_val.animate.set_value(2.5),
-            x2_val.animate.set_value(2.0),
-            run_time=2
-        )
-        self.wait(2)
+        self.play(Write(final_message))
+        self.wait(2.0)
         
         self.play(*[FadeOut(mob) for mob in self.mobjects])
         self.wait(1)
@@ -1171,7 +1050,7 @@ class NeuronDecisionMaker(Scene):
             
             # Weight label
             weight = MathTex(f"w_{{{i+1}}}", color=GREEN).scale(0.7)
-            weight.next_to(arrow, DOWN, buff=0.1)
+            weight.shift(RIGHT * 2 + UP * y_pos)
             weight_labels.add(weight)
         
         self.play(FadeIn(neuron_group))
@@ -1219,19 +1098,35 @@ class NeuronDecisionMaker(Scene):
             products.append(product_val)
             
             # Create product text
+            y_pos = 2 - i * 1.3
             product_text = MathTex(f"{product_val:.2f}", color=ORANGE).scale(0.7)
-            product_text.shift(arrows[i].get_center() + RIGHT * 0.5)
+            product_text.shift(RIGHT * 3.5 + UP * y_pos)
             
             # Animate product appearing
             product_animations.append(FadeIn(product_text, shift=RIGHT * 0.5))
         
         self.play(LaggedStart(*product_animations, lag_ratio=0.3))
         self.wait(3)
+
+        # Animate products flowing and summing into neuron
+        sum_animation = []
+        for i in range(num_inputs):
+            y_pos = 2 - i * 1.3
+            product_copy = MathTex(f"{products[i]:.2f}", color=ORANGE).scale(0.5)
+            product_copy.shift(RIGHT * 3.5 + UP * y_pos)
+            sum_animation.append(product_copy.animate.move_to(neuron).set_opacity(0))
+
+        self.play(*sum_animation, neuron.animate.set_fill(ORANGE, opacity=1), run_time=0.8)
+
+        # Show final sum in neuron
+        z_sum = MathTex(f"z = {sum(products):.2f}", color=BLACK).scale(0.6)
+        z_sum.move_to(neuron)
+        self.play(FadeOut(neuron_label), FadeIn(z_sum), run_time=0.2)
         
         # Clear for next part
         self.play(*[FadeOut(mob) for mob in [
-            neuron_group, inputs, arrows, weight_labels, input_displays, weight_displays,
-            *self.mobjects[-num_inputs:],  # Remove product texts
+         inputs, arrows, weight_labels, input_displays, weight_displays,
+            *self.mobjects[:],  # Remove product texts
         ]])
         self.wait(0.3)
         
@@ -1281,7 +1176,7 @@ class NeuronDecisionMaker(Scene):
             Create(z_box),
             Write(z_explanation)
         )
-        self.wait(8)
+        self.wait(7)
         
         # Clear braces and labels
         self.play(*[FadeOut(mob) for mob in [
@@ -1726,25 +1621,10 @@ class NeuronStacking(Scene):
 class SmartThermostatExample(Scene):
     def construct(self):
         # Title
-        title = Text("Real World Example: Smart Thermostat", font_size=40, color=BLUE)
+        title = Text("Real World: Smart Thermostat", font_size=40, color=BLUE)
         title.to_edge(UP)
-        self.play(Write(title))
-        self.wait(1)
-        
-        # Subtitle
-        subtitle = Text("Deciding when to turn on air conditioning", font_size=26, color=GRAY)
-        subtitle.next_to(title, DOWN, buff=0.3)
-        self.play(FadeIn(subtitle))
-        self.wait(1.5)
-        
-        self.play(FadeOut(subtitle))
-        self.wait(0.3)
-        
-        # PART 1: Show the thermostat and its inputs
-        scenario = Text("The Problem: Should we turn on the AC?", font_size=28, color=ORANGE)
-        scenario.next_to(title, DOWN, buff=0.4)
-        self.play(Write(scenario))
-        self.wait(1)
+        self.play(Write(title), run_time=0.8)
+        self.wait(5)
         
         # Create visual representations of inputs
         # Temperature thermometer
@@ -1754,7 +1634,7 @@ class SmartThermostatExample(Scene):
         temp_bulb.next_to(thermometer, DOWN, buff=0)
         temp_reading = MathTex("32°C", color=RED, font_size=32)
         temp_reading.next_to(thermometer, UP, buff=0.2)
-        temp_label = Text("Room Temp", font_size=20, color=WHITE)
+        temp_label = Text("Temp", font_size=18, color=WHITE)
         temp_label.next_to(temp_bulb, DOWN, buff=0.3)
         temp_group.add(thermometer, temp_bulb, temp_reading, temp_label)
         temp_group.shift(LEFT * 4.5 + UP * 0.5)
@@ -1770,9 +1650,9 @@ class SmartThermostatExample(Scene):
             ray.move_to(sun_circle.get_center())
             ray.shift(ray.get_center() - ORIGIN + 
                      0.5 * (ray.get_end() - ray.get_start()))
-        sun_reading = Text("High", color=YELLOW, font_size=28)
+        sun_reading = Text("High", color=YELLOW, font_size=26)
         sun_reading.next_to(sun_circle, UP, buff=0.4)
-        sun_label = Text("Sunlight", font_size=20, color=WHITE)
+        sun_label = Text("Sun", font_size=18, color=WHITE)
         sun_label.next_to(sun_circle, DOWN, buff=0.5)
         sun_group.add(sun_circle, sun_rays, sun_reading, sun_label)
         sun_group.shift(LEFT * 1.5 + UP * 0.5)
@@ -1784,316 +1664,152 @@ class SmartThermostatExample(Scene):
         minute_hand = Line(ORIGIN, UP * 0.35, color=WHITE, stroke_width=3).rotate(-PI/3)
         hour_hand.move_to(clock_circle.get_center())
         minute_hand.move_to(clock_circle.get_center())
-        time_reading = Text("2 PM", color=BLUE_D, font_size=28)
+        time_reading = Text("2 PM", color=BLUE_D, font_size=26)
         time_reading.next_to(clock_circle, UP, buff=0.4)
-        time_label = Text("Time of Day", font_size=20, color=WHITE)
+        time_label = Text("Time", font_size=18, color=WHITE)
         time_label.next_to(clock_circle, DOWN, buff=0.5)
         clock_group.add(clock_circle, hour_hand, minute_hand, time_reading, time_label)
         clock_group.shift(RIGHT * 1.8 + UP * 0.5)
+        
+        # Create neuron in center
+        neuron = Circle(radius=0.6, color=YELLOW, fill_opacity=0.9)
+        neuron_label = Text("Neuron", font_size=20, color=BLACK, weight=BOLD)
+        neuron_label.move_to(neuron)
+        neuron_group = VGroup(neuron, neuron_label)
+        neuron_group.shift(DOWN * 2.5)
         
         # AC unit (output)
         ac_group = VGroup()
         ac_box = Rectangle(width=1.2, height=0.8, color=BLUE, fill_opacity=0.7, stroke_width=3)
         ac_label = Text("AC", color=WHITE, font_size=32, weight=BOLD).move_to(ac_box)
-        ac_status = Text("???", color=YELLOW, font_size=24)
+        ac_status = Text("?", color=YELLOW, font_size=28)
         ac_status.next_to(ac_box, DOWN, buff=0.3)
         ac_group.add(ac_box, ac_label, ac_status)
         ac_group.shift(RIGHT * 4.5 + UP * 0.5)
         
+        # Show all elements
         self.play(
             LaggedStart(
                 FadeIn(temp_group),
                 FadeIn(sun_group),
                 FadeIn(clock_group),
+                FadeIn(neuron_group),
                 FadeIn(ac_group),
-                lag_ratio=0.4
-            )
+                lag_ratio=0.15
+            ),
+            run_time=4
         )
-        self.wait(2)
-        
-        self.play(FadeOut(scenario))
-        self.wait(0.3)
-        
-        # PART 2: Show the neuron with weights
-        neuron_title = Text("The Neuron Analyzes Each Input", font_size=28, color=GREEN)
-        neuron_title.next_to(title, DOWN, buff=0.4)
-        self.play(Write(neuron_title))
         self.wait(0.5)
-        
-        # Create neuron in center
-        neuron = Circle(radius=0.6, color=YELLOW, fill_opacity=0.9)
-        neuron_label = Text("Decision\nNeuron", font_size=18, color=BLACK, line_spacing=1)
-        neuron_label.move_to(neuron)
-        neuron_group = VGroup(neuron, neuron_label)
-        neuron_group.shift(DOWN * 1.5)
-        
-        self.play(FadeIn(neuron_group))
-        self.wait(0.5)
+
+        scenario1 = Text("Hot sunny afternoon", font_size=24, color=ORANGE)
+        scenario1.next_to(title, DOWN, buff=0.3)
+        self.play(Write(scenario1))
         
         # Connect inputs to neuron with arrows and weights
-        # Temperature connection (strong positive)
-        temp_arrow = Arrow(temp_group.get_bottom(), neuron.get_left() + UP * 0.4, 
-                          buff=0.1, color=RED, stroke_width=8)
-        temp_weight = MathTex("w_1 = +2.5", color=RED, font_size=24)
+        temp_arrow = Arrow(temp_group.get_bottom(), neuron.get_left() + UP * 0.3, 
+                          buff=0.1, color=RED, stroke_width=7)
+        temp_weight = MathTex("w = +2.5", color=RED, font_size=20)
         temp_weight.next_to(temp_arrow, LEFT, buff=0.1)
-        temp_importance = Text("STRONG\npositive", font_size=16, color=RED, line_spacing=1)
-        temp_importance.next_to(temp_weight, DOWN, buff=0.2)
         
-        self.play(
-            GrowArrow(temp_arrow),
-            Write(temp_weight)
-        )
-        self.play(Write(temp_importance))
-        self.wait(1)
+        sun_arrow = Arrow(sun_group.get_bottom(), neuron.get_top() + LEFT * 0.15, 
+                         buff=0.1, color=YELLOW, stroke_width=4)
+        sun_weight = MathTex("w = +0.8", color=YELLOW, font_size=20)
+        sun_weight.next_to(sun_arrow, RIGHT * 0.1, buff=0.1)
         
-        # Sunlight connection (smaller positive)
-        sun_arrow = Arrow(sun_group.get_bottom(), neuron.get_top() + LEFT * 0.2, 
-                         buff=0.1, color=YELLOW, stroke_width=5)
-        sun_weight = MathTex("w_2 = +0.8", color=YELLOW, font_size=24)
-        sun_weight.next_to(sun_arrow, UP, buff=0.1)
-        sun_importance = Text("smaller\npositive", font_size=16, color=YELLOW, line_spacing=1)
-        sun_importance.next_to(sun_weight, LEFT, buff=0.2)
-        
-        self.play(
-            GrowArrow(sun_arrow),
-            Write(sun_weight)
-        )
-        self.play(Write(sun_importance))
-        self.wait(1)
-        
-        # Time connection (negative at night)
-        time_arrow = Arrow(clock_group.get_bottom(), neuron.get_right() + UP * 0.3, 
+        time_arrow = Arrow(clock_group.get_bottom(), neuron.get_right() + UP * 0.25, 
                           buff=0.1, color=BLUE, stroke_width=4)
-        time_weight = MathTex("w_3 = +0.5", color=BLUE, font_size=24)
-        time_weight.next_to(time_arrow, RIGHT, buff=0.1)
-        time_importance = Text("positive\n(daytime)", font_size=16, color=BLUE, line_spacing=1)
-        time_importance.next_to(time_weight, DOWN, buff=0.2)
+        time_weight = MathTex("w = +0.5", color=BLUE, font_size=20)
+        time_weight.next_to(time_arrow, RIGHT * 1.6, buff=0.3)
         
-        self.play(
-            GrowArrow(time_arrow),
-            Write(time_weight)
-        )
-        self.play(Write(time_importance))
-        self.wait(1)
-        
-        # Bias (comfort level)
-        bias_arrow = Arrow(neuron.get_bottom() + DOWN * 0.5, neuron.get_bottom(), 
-                          buff=0.1, color=PURPLE, stroke_width=5)
-        bias_label = MathTex("b = -15", color=PURPLE, font_size=24)
+        bias_arrow = Arrow(neuron.get_bottom() + DOWN * 0.4, neuron.get_bottom(), 
+                          buff=0.1, color=PURPLE, stroke_width=4)
+        bias_label = MathTex("b = -15", color=PURPLE, font_size=20)
         bias_label.next_to(bias_arrow, DOWN, buff=0.1)
-        bias_desc = Text("Base comfort\nlevel (24°C)", font_size=16, color=PURPLE, line_spacing=1)
-        bias_desc.next_to(bias_label, DOWN, buff=0.2)
         
-        self.play(
-            GrowArrow(bias_arrow),
-            Write(bias_label)
-        )
-        self.play(Write(bias_desc))
+        self.play(GrowArrow(temp_arrow), Write(temp_weight))
+        self.wait(5.5)
+        self.play(GrowArrow(sun_arrow), Write(sun_weight))
+        self.wait(0.5)
+        self.play(GrowArrow(time_arrow), Write(time_weight))
         self.wait(2)
+        self.play(GrowArrow(bias_arrow), Write(bias_label))
+        self.wait(8)
         
-        # Clear annotations but keep structure
-        self.play(*[FadeOut(mob) for mob in [
-            temp_importance, sun_importance, time_importance, bias_desc, neuron_title
-        ]])
-        self.wait(0.3)
+        # SCENARIO 1: Hot day → AC ON
         
-        # PART 3: Show the calculation
-        calc_title = Text("Computing the Weighted Sum", font_size=28, color=ORANGE)
-        calc_title.next_to(title, DOWN, buff=0.4)
-        self.play(Write(calc_title))
-        self.wait(0.5)
-        
-        # Show equation building up
-        equation = MathTex(
-            "z", "=", "w_1", "x_1", "+", "w_2", "x_2", "+", "w_3", "x_3", "+", "b"
-        )
-        equation.scale(1.1)
-        equation.to_edge(LEFT, buff=0.5).shift(DOWN * 3.2)
-        
-        self.play(Write(equation))
-        self.wait(0.5)
-        
-        # Substitute values
-        values = MathTex(
-            "z", "=", "(2.5)(32)", "+", "(0.8)(0.7)", "+", "(0.5)(0.8)", "+", "(-15)"
-        )
-        values.scale(1.0)
-        values.next_to(equation, DOWN, buff=0.4)
-        
-        self.play(Write(values))
-        self.wait(1)
-        
-        # Calculate
-        step1 = MathTex("z", "=", "80", "+", "0.56", "+", "0.4", "+", "(-15)")
-        step1.scale(1.0)
-        step1.next_to(values, DOWN, buff=0.3)
-        
-        self.play(Write(step1))
-        self.wait(0.8)
-        
-        result = MathTex("z", "=", "65.96")
-        result.scale(1.2)
-        result.next_to(step1, DOWN, buff=0.3)
-        result_box = SurroundingRectangle(result, color=ORANGE, buff=0.15)
-        
-        self.play(Write(result), Create(result_box))
-        self.wait(1)
-        
-        # Show z value on neuron
-        z_display = MathTex("z = 65.96", color=BLACK, font_size=20)
-        z_display.move_to(neuron)
+        output_arrow1 = Arrow(neuron.get_right() + DOWN*0.2, ac_group.get_left(),
+                             color=GREEN, stroke_width=5, buff=0.2)
         
         self.play(
-            FadeOut(neuron_label),
-            FadeIn(z_display),
-            neuron.animate.set_fill(ORANGE, opacity=0.9)
+            GrowArrow(output_arrow1),
+            neuron.animate.set_fill(GREEN, opacity=0.9),
+            run_time=0.8
         )
-        self.wait(1)
         
-        self.play(FadeOut(calc_title))
-        self.wait(0.3)
-        
-        # PART 4: Apply activation function
-        activation_title = Text("Apply Activation: Make the Decision", font_size=28, color=GREEN)
-        activation_title.next_to(title, DOWN, buff=0.4)
-        self.play(Write(activation_title))
-        self.wait(0.5)
-        
-        # Show activation function
-        activation_arrow = Arrow(neuron.get_right(), neuron.get_right() + RIGHT * 1.5,
-                                color=GREEN, stroke_width=5, buff=0.1)
-        activation_label = MathTex("\\sigma(z)", color=GREEN, font_size=28)
-        activation_label.next_to(activation_arrow, UP, buff=0.1)
-        
-        self.play(GrowArrow(activation_arrow), Write(activation_label))
-        self.wait(0.5)
-        
-        # Output node
-        output_circle = Circle(radius=0.5, color=GREEN, fill_opacity=0.9)
-        output_value = MathTex("y \\approx 1.0", color=BLACK, font_size=24)
-        output_value.move_to(output_circle)
-        output_node = VGroup(output_circle, output_value)
-        output_node.next_to(activation_arrow, RIGHT, buff=0.1)
-        
-        self.play(FadeIn(output_node))
-        self.wait(0.5)
-        
-        # Decision interpretation
-        decision_arrow = Arrow(output_node.get_right(), ac_group.get_left(),
-                              color=GREEN, stroke_width=5, buff=0.2)
-        
-        self.play(GrowArrow(decision_arrow))
-        
-        # Update AC status
         new_ac_status = Text("ON", color=GREEN, font_size=32, weight=BOLD)
         new_ac_status.next_to(ac_box, DOWN, buff=0.3)
         
         self.play(
             FadeOut(ac_status),
             FadeIn(new_ac_status),
-            ac_box.animate.set_fill(GREEN, opacity=0.8)
+            ac_box.animate.set_fill(GREEN, opacity=0.8),
+            run_time=0.7
         )
-        self.wait(1)
         
-        decision_text = Text("Output ≈ 1 → AC turns ON!", font_size=26, color=GREEN)
-        decision_text.next_to(output_node, DOWN, buff=0.5)
-        self.play(Write(decision_text))
-        self.wait(2)
+        # SCENARIO 2: Night time → AC OFF
+        self.play(FadeOut(scenario1), run_time=0.4)
+        scenario2 = Text("Late night, cooler", font_size=24, color=BLUE_D)
+        scenario2.next_to(title, DOWN, buff=0.3)
+        self.play(Write(scenario2), run_time=0.7)
         
-        # Clear for scenario change
-        self.play(*[FadeOut(mob) for mob in [
-            equation, values, step1, result, result_box,
-            activation_arrow, activation_label, output_node, decision_arrow,
-            decision_text, activation_title
-        ]])
-        self.wait(0.5)
-        
-        # PART 5: Different scenario - nighttime
-        scenario2_title = Text("Different Scenario: Late at Night", font_size=28, color=BLUE_D)
-        scenario2_title.next_to(title, DOWN, buff=0.4)
-        self.play(Write(scenario2_title))
-        self.wait(0.5)
-        
-        # Update inputs
-        new_temp = MathTex("25°C", color=RED, font_size=32)
+        # Update inputs for night
+        new_temp = MathTex("24°C", color=RED, font_size=32)
         new_temp.move_to(temp_reading)
         
-        new_sun = Text("None", color=GRAY, font_size=28)
+        new_sun = Text("None", color=YELLOW, font_size=26)
         new_sun.move_to(sun_reading)
         
-        new_time = Text("11 PM", color=BLUE_D, font_size=28)
+        new_time = Text("11 PM", color=BLUE_D, font_size=26)
         new_time.move_to(time_reading)
         
-        # Update clock hands to show night
         new_hour_hand = Line(ORIGIN, DOWN * 0.2, color=WHITE, stroke_width=4)
         new_hour_hand.move_to(clock_circle.get_center())
         new_minute_hand = Line(ORIGIN, LEFT * 0.35, color=WHITE, stroke_width=3)
         new_minute_hand.move_to(clock_circle.get_center())
         
-        # Update weight for nighttime (negative)
-        new_time_weight = MathTex("w_3 = -1.2", color=BLUE, font_size=24)
+        new_time_weight = MathTex("w = -1.2", color=ORANGE, font_size=20)
         new_time_weight.move_to(time_weight)
+        
+        off_status = Text("OFF", color=RED, font_size=32, weight=BOLD)
+        off_status.next_to(ac_box, DOWN, buff=0.3)
         
         self.play(
             Transform(temp_reading, new_temp),
-            Transform(sun_reading, new_sun),
+            thermometer.animate.set_fill(ORANGE, opacity=0.6),
+            FadeOut(sun_reading),
+            FadeIn(new_sun),
             sun_group.animate.set_opacity(0.3),
             Transform(time_reading, new_time),
             Transform(hour_hand, new_hour_hand),
             Transform(minute_hand, new_minute_hand),
             Transform(time_weight, new_time_weight),
-            time_arrow.animate.set_color(ORANGE)
+            time_arrow.animate.set_color(ORANGE),
+            run_time=1.2
         )
-        self.wait(1)
-        
-        # New calculation
-        new_values = MathTex(
-            "z", "=", "(2.5)(25)", "+", "(0.8)(0)", "+", "(-1.2)(0.9)", "+", "(-15)"
-        )
-        new_values.scale(0.95)
-        new_values.to_edge(LEFT, buff=0.5).shift(DOWN * 3.2)
-        
-        self.play(Write(new_values))
-        self.wait(0.8)
-        
-        new_result = MathTex("z", "=", "47.42")
-        new_result.scale(1.2)
-        new_result.next_to(new_values, DOWN, buff=0.3)
-        new_result_box = SurroundingRectangle(new_result, color=BLUE, buff=0.15)
-        
-        self.play(Write(new_result), Create(new_result_box))
-        self.wait(1)
-        
-        # Still high, AC still on
-        new_z_display = MathTex("z = 47.42", color=BLACK, font_size=20)
-        new_z_display.move_to(neuron)
-        
-        new_output_text = Text("y ≈ 1.0 → Still ON\n(But close to threshold!)", 
-                              font_size=24, color=YELLOW, line_spacing=1.2)
-        new_output_text.next_to(ac_group, DOWN, buff=0.8)
         
         self.play(
-            Transform(z_display, new_z_display),
-            Write(new_output_text)
+            output_arrow1.animate.set_color(RED).set_stroke(width=3),
+            neuron.animate.set_fill(RED, opacity=0.6),
+            FadeOut(new_ac_status),
+            FadeIn(off_status),
+            ac_box.animate.set_fill(RED, opacity=0.5),
+            run_time=1
         )
-        self.wait(2)
+
+        self.wait(1.0)
         
-        # Final explanation
-        self.play(*[FadeOut(mob) for mob in [new_values, new_result, new_result_box, scenario2_title]])
-        
-        final_explanation = Text(
-            "The neuron weighs all inputs,\napplies learned weights and bias,\nand makes an intelligent decision!",
-            font_size=26,
-            color=GOLD,
-            line_spacing=1.3
-        )
-        final_explanation.next_to(title, DOWN, buff=0.8)
-        
-        self.play(Write(final_explanation))
-        self.wait(3)
-        
-        self.play(*[FadeOut(mob) for mob in self.mobjects])
-        self.wait(1)
+        self.play(*[FadeOut(mob) for mob in self.mobjects], run_time=0.8)
+        self.wait(0.3)
 
 class IntroText(Scene):
     def construct(self):
@@ -2187,3 +1903,136 @@ class IntroNeuronOverview(Scene):
         
         self.play(FadeOut(dive_in))
         self.wait(0.5)
+
+class KeyTakeaways(Scene):
+    def construct(self):
+        # Title
+        title = Text("Key Takeaways", font_size=44, color=YELLOW, weight=BOLD)
+        title.to_edge(UP)
+        self.play(Write(title), run_time=0.8)
+        self.wait(1.0)
+        
+        # Bullet points - each with individual self.play for voiceover timing
+        bullet1 = Text("• Computes Weighted sum of inputs", font_size=28, color=WHITE)
+        bullet1.next_to(title, DOWN, buff=1).to_edge(LEFT, buff=1.5)
+        self.play(FadeIn(bullet1, shift=RIGHT*0.3), run_time=0.6)
+        self.wait(8)  # Adjust timing as needed for voiceover
+        
+        bullet2 = Text("• Weights determine importance", font_size=28, color=WHITE)
+        bullet2.next_to(bullet1, DOWN, buff=0.5, aligned_edge=LEFT)
+        self.play(FadeIn(bullet2, shift=RIGHT*0.3), run_time=0.6)
+        self.wait(2)
+        
+        bullet3 = Text("• Bias provides flexibility", font_size=28, color=WHITE)
+        bullet3.next_to(bullet2, DOWN, buff=0.5, aligned_edge=LEFT)
+        self.play(FadeIn(bullet3, shift=RIGHT*0.3), run_time=0.6)
+        self.wait(2)
+        
+        bullet4 = Text("• Activation function makes the decision", font_size=28, color=WHITE)
+        bullet4.next_to(bullet3, DOWN, buff=0.5, aligned_edge=LEFT)
+        self.play(FadeIn(bullet4, shift=RIGHT*0.3), run_time=0.6)
+        self.wait(1)
+        
+        bullet5 = Text("• Foundation of learning in neural networks", font_size=28, color=WHITE)
+        bullet5.next_to(bullet4, DOWN, buff=0.5, aligned_edge=LEFT)
+        self.play(FadeIn(bullet5, shift=RIGHT*0.3), run_time=0.6)
+        self.wait(1.5)
+        
+        # Fade out everything
+        self.play(*[FadeOut(mob) for mob in self.mobjects], run_time=0.8)
+        self.wait(0.5)
+        
+        # PREVIEW - Next video teaser
+        next_title = Text("Coming Next:", font_size=36, color=BLUE, weight=BOLD)
+        next_title.shift(UP * 2)
+        self.play(Write(next_title), run_time=0.7)
+        self.wait(0.3)
+        
+        # Simple network visualization showing forward propagation
+        # Input layer
+        inputs = VGroup(*[
+            Circle(radius=0.2, color=BLUE, fill_opacity=0.7)
+            for _ in range(3)
+        ]).arrange(DOWN, buff=0.4)
+        inputs.shift(LEFT * 4)
+        
+        # Hidden layer
+        hidden = VGroup(*[
+            Circle(radius=0.2, color=YELLOW, fill_opacity=0.8)
+            for _ in range(4)
+        ]).arrange(DOWN, buff=0.3)
+        hidden.shift(LEFT * 1.5)
+        
+        # Output layer
+        output = VGroup(*[
+            Circle(radius=0.2, color=GREEN, fill_opacity=0.8)
+            for _ in range(2)
+        ]).arrange(DOWN, buff=0.5)
+        output.shift(RIGHT * 2)
+        
+        # Connections
+        connections = VGroup()
+        for inp in inputs:
+            for hid in hidden:
+                line = Line(inp.get_center(), hid.get_center(), 
+                          stroke_width=1, color=GRAY, stroke_opacity=0.4)
+                connections.add(line)
+        
+        for hid in hidden:
+            for out in output:
+                line = Line(hid.get_center(), out.get_center(),
+                          stroke_width=1, color=GRAY, stroke_opacity=0.4)
+                connections.add(line)
+        
+        network = VGroup(connections, inputs, hidden, output)
+        network.shift(DOWN * 0.5)
+        
+        # Show network
+        self.play(
+            Create(connections),
+            LaggedStart(*[FadeIn(node) for node in inputs], lag_ratio=0.15),
+            run_time=1
+        )
+        
+        self.play(
+            LaggedStart(*[FadeIn(node) for node in hidden], lag_ratio=0.1),
+            run_time=0.8
+        )
+        
+        self.play(
+            LaggedStart(*[FadeIn(node) for node in output], lag_ratio=0.2),
+            run_time=0.6
+        )
+        self.wait(0.3)
+        
+        # Animate signal flowing through (forward propagation)
+        # Light up input layer
+        self.play(
+            *[node.animate.set_fill(BLUE, opacity=1).scale(1.2) for node in inputs],
+            run_time=0.4
+        )
+        
+        # Signal to hidden layer
+        self.play(
+            *[node.animate.set_fill(YELLOW, opacity=1).scale(1.2) for node in hidden],
+            *[node.animate.scale(1/1.2) for node in inputs],
+            run_time=0.5
+        )
+        
+        # Signal to output layer
+        self.play(
+            *[node.animate.set_fill(GREEN, opacity=1).scale(1.2) for node in output],
+            *[node.animate.scale(1/1.2) for node in hidden],
+            run_time=0.5
+        )
+        self.wait(0.3)
+        
+        # Preview text
+        preview_text = Text("Forward Propagation", font_size=32, color=GREEN, weight=BOLD)
+        preview_text.to_edge(DOWN, buff=1)
+        self.play(Write(preview_text), run_time=0.7)
+        self.wait(3)
+        
+        # Fade out
+        self.play(*[FadeOut(mob) for mob in self.mobjects], run_time=0.8)
+        self.wait(0.3)
